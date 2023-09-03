@@ -107,8 +107,11 @@ class AccountsControllerTest {
         content().string("{\"accountId\":\"" + uniqueAccountId + "\",\"balance\":123.45}"));
   }
 
+  /*
+    junit to cover the fund transfer case when transfer amount is less than balance
+   */
   @Test
-  void shouldTransferFundWhenAmountToTransferIsLessThanBalance() throws Exception {
+  void shouldTransferFundWhenAmountToTransferIsLessThanBalanceTest() throws Exception {
 
     Account debtorAccount = new Account("Id-123456", new BigDecimal("50000"));
     this.accountsService.createAccount(debtorAccount);
@@ -123,8 +126,11 @@ class AccountsControllerTest {
                     content().string("Fund Transfer is successful"));
   }
 
+  /*
+    junit to cover the fund transfer case when transfer amount is more than balance
+  */
   @Test
-  void shouldTransferFundTestWhenAmountToTransferIsMoreThanBalance() throws Exception {
+  void shouldTransferFundWhenAmountToTransferIsMoreThanBalanceTest() throws Exception {
 
     Account debtorAccount = new Account("Id-123456", new BigDecimal("50000"));
     this.accountsService.createAccount(debtorAccount);

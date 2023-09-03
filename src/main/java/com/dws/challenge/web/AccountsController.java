@@ -49,6 +49,9 @@ public class AccountsController {
     return this.accountsService.getAccount(accountId);
   }
 
+  /*
+   Api to transfer Fund between two different accounts
+  */
   @PostMapping(path = "/transfer", consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> transferFund(@RequestBody @Valid TransactionDetails transactionDetailsRequest) {
     try {

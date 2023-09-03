@@ -32,10 +32,16 @@ public class Account {
     this.balance = balance;
   }
 
+  /*
+    update the balance after deposit into the account
+   */
   public void deposit(BigDecimal amount) {
     balance = balance.add(amount);
   }
 
+  /*
+    update the balance after withdrawal from the account
+  */
   public void withdraw(BigDecimal amount) {
     balance = balance.subtract(amount);
   }
