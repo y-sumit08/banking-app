@@ -47,21 +47,25 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
         Account creditorAccount = null;
         try {
             debtorAccount = getAccount(debtorAccountId);
-            if (debtorAccount != null) {
+            if (debtorAccount != null ) {
                 if (debtorAccount.getBalance().compareTo(amountToTransfer) >= 0) {
                     debtorAccount.withdraw(amountToTransfer);
                 } else {
                     throw new RuntimeException("Not enough balance in account for transfer");
                 }
+            } else {
+                throw new RuntimeException("debtorAccount cannot be NULL incase of fund transfer");
             }
 
             creditorAccount = getAccount(creditorAccountId);
             if (creditorAccount != null) {
                 creditorAccount.deposit(amountToTransfer);
+            } else {
+                throw new RuntimeException("creditorAccount cannot be NULL incase of fund transfer");
             }
             if (emailNotificationService != null) {
-                emailNotificationService.notifyAboutTransfer(debtorAccount, debtorAccount.getAccountId() + " debited for " + amountToTransfer);
-                emailNotificationService.notifyAboutTransfer(creditorAccount, creditorAccount.getAccountId() + " credited with " + amountToTransfer);
+                emailNotificationService.notifyAboutTransfer(creditorAccount, debtorAccount.getAccountId() + " has been debited with " + amountToTransfer);
+                emailNotificationService.notifyAboutTransfer(debtorAccount, creditorAccount.getAccountId() + " has been credited with " + amountToTransfer);
             }
         } catch (Exception ex) {
             throw new RuntimeException("An exception occurred while transferring fund", ex);
