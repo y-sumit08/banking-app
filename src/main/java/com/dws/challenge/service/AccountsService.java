@@ -16,9 +16,8 @@ import java.util.concurrent.locks.ReentrantLock;
 public class AccountsService {
   @Autowired
   private EmailNotificationService emailNotificationService;
-  private final Lock transferFundLock = new ReentrantLock();
 
-  //private final Map<String, Lock> accountLocks = new HashMap<>();
+  private final Map<String, Lock> accountLocks = new HashMap<>();
 
   @Getter
   private final AccountsRepository accountsRepository;
@@ -36,14 +35,14 @@ public class AccountsService {
     return this.accountsRepository.getAccount(accountId);
   }
 
-  /*public void transferFund(String debtorAccountId, String creditorAccountId, BigDecimal amountToTransfer) {
+  public void transferFund(String debtorAccountId, String creditorAccountId, BigDecimal amountToTransfer) {
 
-    Lock debtorLock = accountLocks.computeIfAbsent(debtorAccountId, (accountId) -> new ReentrantLock());
-    Lock creditorLock = accountLocks.computeIfAbsent(creditorAccountId, (accountId) -> new ReentrantLock());
+    Lock debtorLock = getAccountLock(debtorAccountId);
+    Lock creditorLock = getAccountLock(creditorAccountId);
 
     // Always acquire locks in a consistent order to prevent deadlock
     Lock firstLock = debtorAccountId.compareTo(creditorAccountId) < 0 ? debtorLock : creditorLock;
-    Lock secondLock = debtorAccountId.compareTo(creditorAccountId) < 0 ? creditorLock : debtorLock;
+    Lock secondLock = (firstLock == debtorLock) ? creditorLock : debtorLock;
 
     if (debtorAccountId.equals(creditorAccountId)) {
       throw new IllegalArgumentException("Cannot transfer funds to the same account.");
@@ -77,38 +76,12 @@ public class AccountsService {
     } finally {
       firstLock.unlock();
     }
-  }*/
+  }
 
-  public void transferFund(String debtorAccountId, String creditorAccountId, BigDecimal amountToTransfer) {
-    transferFundLock.lock();
-    Account debtorAccount = null;
-    Account creditorAccount = null;
-    try {
-      debtorAccount = getAccount(debtorAccountId);
-      if (debtorAccount != null) {
-        if (debtorAccount.getBalance().compareTo(amountToTransfer) >= 0) {
-          debtorAccount.withdraw(amountToTransfer);
-        } else {
-          throw new RuntimeException("Not enough balance in account for transfer");
-        }
-      } else {
-        throw new RuntimeException("debtorAccount cannot be NULL incase of fund transfer");
-      }
-
-      creditorAccount = getAccount(creditorAccountId);
-      if (creditorAccount != null) {
-        creditorAccount.deposit(amountToTransfer);
-      } else {
-        throw new RuntimeException("creditorAccount cannot be NULL incase of fund transfer");
-      }
-      if (emailNotificationService != null) {
-        emailNotificationService.notifyAboutTransfer(creditorAccount, debtorAccount.getAccountId() + " has been debited with " + amountToTransfer);
-        emailNotificationService.notifyAboutTransfer(debtorAccount, creditorAccount.getAccountId() + " has been credited with " + amountToTransfer);
-      }
-    } catch (Exception ex) {
-      throw new RuntimeException("An exception occurred while transferring fund", ex);
-    } finally {
-      transferFundLock.unlock();
+  // Helper method to get or create a lock for an account
+  private Lock getAccountLock(String accountId) {
+    synchronized (accountLocks) {
+      return accountLocks.computeIfAbsent(accountId, k -> new ReentrantLock());
     }
   }
 

@@ -75,6 +75,27 @@ class AccountsServiceTest {
   }
 
   /*
+  junit to throw exception incase both the accounts is same during fund transfer
+  */
+  @Test
+  void shouldThrowExceptionWhenAccountIdsAreSameTest()
+  {
+    Account debtorAccount = new Account("Id-123456", new BigDecimal("50000.0"));
+    when(accountsRepository.getAccount(debtorAccount.getAccountId())).thenReturn(debtorAccount);
+
+    Account creditorAccount = new Account("Id-123456", new BigDecimal("10000.0"));
+    when(accountsRepository.getAccount(creditorAccount.getAccountId())).thenReturn(creditorAccount);
+
+    BigDecimal transferAmount = new BigDecimal(5000.0);
+
+    assertThrows(
+            IllegalArgumentException.class,
+            () -> accountsService.transferFund(debtorAccount.getAccountId(),
+                    creditorAccount.getAccountId(), transferAmount)
+    );
+  }
+
+  /*
     junit to cover the fund transfer incase of sufficient balance in account
   */
   @Test
@@ -107,7 +128,7 @@ class AccountsServiceTest {
     junit to cover the fund transfer incase of insufficient balance in account
   */
   @Test
-  void shouldTransferFundWhenBalanceIsInSufficientTest() {
+  void shouldThrowExceptionWhenBalanceIsInSufficientTest() {
     Account debtorAccount = new Account("Id-123456", new BigDecimal("50000.0"));
     when(accountsRepository.getAccount(debtorAccount.getAccountId())).thenReturn(debtorAccount);
 
@@ -124,7 +145,7 @@ class AccountsServiceTest {
   }
 
   /*
-  junit to throw exception incase one of the accounts is null
+  junit to throw exception incase one of the accounts is null during fund transfer
    */
   @Test
   void shouldThrowExceptionWhenOneOfTheAccountIsNullTest()
@@ -145,10 +166,10 @@ class AccountsServiceTest {
   }
 
   /*
-   junit to cover the fund transfer incase of concurrency
+   junit to cover the fund transfer between same pair of accounts incase of concurrency
   */
   @Test
-  void shouldTransferFundConcurrentlyTest() throws InterruptedException {
+  void shouldTransferFundConcurrentlyBetweenSameAccountsTest() throws InterruptedException {
     // Create two accounts with initial balances
     Account account1 = new Account("Id-1");
     account1.setBalance(new BigDecimal(1000.0));
@@ -202,27 +223,33 @@ class AccountsServiceTest {
   */
   @RepeatedTest(10) // Repeat the test multiple times to check for concurrency issues
   @DisplayName("Concurrent Transfer Test for different pair of accounts")
-  public void testConcurrentTransfer() throws InterruptedException {
-    // Set up two accounts with initial balances
+  public void shouldDoConcurrentFundTransferForMultiplePairOfAccountsTest() throws InterruptedException {
+    // Set up three accounts with initial balances
     Account account1 = new Account("Id-1", new BigDecimal(1000));
     Account account2 = new Account("Id-2", new BigDecimal(1000));
     Account account3 = new Account("Id-3", new BigDecimal(1000));
     Account account4 = new Account("Id-4", new BigDecimal(1000));
 
+    Account account5 = new Account("Id-5", new BigDecimal(1000));
+    Account account6 = new Account("Id-6", new BigDecimal(1000));
+
     when(accountsRepository.getAccount(account1.getAccountId())).thenReturn(account1);
     when(accountsRepository.getAccount(account2.getAccountId())).thenReturn(account2);
     when(accountsRepository.getAccount(account3.getAccountId())).thenReturn(account3);
     when(accountsRepository.getAccount(account4.getAccountId())).thenReturn(account4);
+    when(accountsRepository.getAccount(account5.getAccountId())).thenReturn(account5);
+    when(accountsRepository.getAccount(account6.getAccountId())).thenReturn(account6);
 
     // Set up the transfer amounts
     BigDecimal amountToTransfer1 = new BigDecimal(100);
     BigDecimal amountToTransfer2 = new BigDecimal(200);
+    BigDecimal amountToTransfer3 = new BigDecimal(400);
 
     // Create a CountDownLatch to synchronize the start of concurrent transfers
-    CountDownLatch startLatch = new CountDownLatch(2);
+    CountDownLatch startLatch = new CountDownLatch(3);
 
     // Create an ExecutorService to run concurrent transfers
-    ExecutorService executorService = Executors.newFixedThreadPool(2);
+    ExecutorService executorService = Executors.newFixedThreadPool(3);
 
     // Start the first transfer
     executorService.submit(() -> {
@@ -248,6 +275,18 @@ class AccountsServiceTest {
       accountsService.transferFund(account3.getAccountId(), account4.getAccountId(), amountToTransfer2);
     });
 
+    // Start the third transfer
+    executorService.submit(() -> {
+      startLatch.countDown();
+      try {
+        startLatch.await(); // Wait for all transfers to start concurrently
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+      accountsService.transferFund(account5.getAccountId(), account6.getAccountId(), amountToTransfer3);
+    });
+
     // Shutdown the executor service and wait for both transfers to complete
     executorService.shutdown();
     executorService.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
@@ -258,10 +297,15 @@ class AccountsServiceTest {
     Account debtorAccount2 = accountsRepository.getAccount(account3.getAccountId());
     Account creditorAccount2 = accountsRepository.getAccount(account4.getAccountId());
 
+    Account debtorAccount3 = accountsRepository.getAccount(account5.getAccountId());
+    Account creditorAccount3 = accountsRepository.getAccount(account6.getAccountId());
+
     // Perform assertions to check if the transfers were successful
     assertEquals(new BigDecimal(900), debtorAccount1.getBalance());
     assertEquals(new BigDecimal(1100), creditorAccount1.getBalance());
     assertEquals(new BigDecimal(800), debtorAccount2.getBalance());
     assertEquals(new BigDecimal(1200), creditorAccount2.getBalance());
+    assertEquals(new BigDecimal(600), debtorAccount3.getBalance());
+    assertEquals(new BigDecimal(1400), creditorAccount3.getBalance());
   }
 }
